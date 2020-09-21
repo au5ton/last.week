@@ -1,69 +1,63 @@
 import Head from 'next/head'
+import useSWR from 'swr';
+import { useState } from 'react';
+
+async function fetchResults(key) {
+  try {
+    const [username, apiKey, from, to] = key.split('/')
+    let res = await fetch(`http://ws.audioscrobbler.com/2.0/?method=user.getweeklytrackchart&user=${username}&api_key=${apiKey}&format=json&from=${from}&to=${to}`)
+    return (await res.json())['weeklytrackchart']['track'];
+  }
+  catch(err) {
+    return [];
+  }
+}
+
 
 export default function Home() {
+  //const [data, setData] = useState({ weeklytrackchart: { track: [] }});
+  const [apiKey, setApiKey] = useState('');
+  const [username, setUsername] = useState('');
+  const [from, setFrom] = useState('');
+  const [to, setTo] = useState('');
+
+  const { data, error, isValidating } = useSWR(`${username}/${apiKey}/${from}/${to}`, fetchResults);
+
   return (
     <div className="container">
       <Head>
-        <title>Create Next App</title>
+        <title>last.week</title>
         <link rel="icon" href="/favicon.ico" />
       </Head>
 
       <main>
         <h1 className="title">
-          Welcome to <a href="https://nextjs.org">Next.js!</a>
+          last.week
         </h1>
 
         <p className="description">
-          Get started by editing <code>pages/index.js</code>
+          yet another last.fm visualizer
         </p>
 
-        <p>
-          Hello, World!
-        </p>
+        <hr />
+
+        API Key: <input type="text" defaultValue="" onChange={e => setApiKey(e.target.value)}></input><br />
+        Username: <input type="text" defaultValue="au5ton" onChange={e => setUsername(e.target.value)}></input><br />
+        From: <input type="date" defaultValue="2020-09-13" onChange={e => setFrom(new Date(e.target.value).valueOf() / 1000)}></input><br />
+        To: <input type="date" defaultValue="2020-09-20" onChange={e => setTo(new Date(e.target.value).valueOf() / 1000)}></input><br />
+        <button onClick={(e) => {
+          e.preventDefault();
+          handleClick().then(e => setData(e));
+        }}>Update</button><br />
 
         <div className="grid">
-          <a href="https://nextjs.org/docs" className="card">
-            <h3>Documentation &rarr;</h3>
-            <p>Find in-depth information about Next.js features and API.</p>
-          </a>
 
-          <a href="https://nextjs.org/learn" className="card">
-            <h3>Learn &rarr;</h3>
-            <p>Learn about Next.js in an interactive course with quizzes!</p>
-          </a>
+          {isValidating === false && Array.isArray(data) ? data.map(e => <WeeklyTrack key={e['@attr']['rank']} track={e}/>) : 'Loading...'}
 
-          <a
-            href="https://github.com/vercel/next.js/tree/master/examples"
-            className="card"
-          >
-            <h3>Examples &rarr;</h3>
-            <p>Discover and deploy boilerplate example Next.js projects.</p>
-          </a>
-
-          <a
-            href="https://vercel.com/import?filter=next.js&utm_source=create-next-app&utm_medium=default-template&utm_campaign=create-next-app"
-            className="card"
-          >
-            <h3>Deploy &rarr;</h3>
-            <p>
-              Instantly deploy your Next.js site to a public URL with Vercel.
-            </p>
-          </a>
         </div>
       </main>
 
-      <footer>
-        <a
-          href="https://vercel.com?utm_source=create-next-app&utm_medium=default-template&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Powered by{' '}
-          <img src="/vercel.svg" alt="Vercel Logo" className="logo" />
-        </a>
-      </footer>
-
-      <style jsx>{`
+      <style jsx global>{`
         .container {
           min-height: 100vh;
           padding: 0 0.5rem;
@@ -167,19 +161,29 @@ export default function Home() {
         .card:hover,
         .card:focus,
         .card:active {
-          color: #0070f3;
+          /*color: #0070f3;*/
           border-color: #0070f3;
         }
 
         .card h3 {
-          margin: 0 0 1rem 0;
+          /*margin: 0 0 1rem 0;*/
+          margin: 0;
           font-size: 1.5rem;
         }
 
         .card p {
-          margin: 0;
+          /*margin: 0;*/
+          margin: 0 0 0.5rem 0;
           font-size: 1.25rem;
           line-height: 1.5;
+        }
+
+        .card .badge {
+          color: #fff;
+          background: #c5140f;
+          padding: 0.25em 0.5em;
+          border-radius: 4px;
+          font-size: 0.8rem;
         }
 
         .logo {
@@ -191,6 +195,12 @@ export default function Home() {
             width: 100%;
             flex-direction: column;
           }
+        }
+
+        hr {
+          width: 85%;
+          border-block-start-color: transparent;
+          border-bottom: 1px solid rgba(128,128,128,0.5);
         }
       `}</style>
 
@@ -210,4 +220,17 @@ export default function Home() {
       `}</style>
     </div>
   )
+}
+
+export async function WeeklyTrack(props) {
+  return (
+    <div className="card">
+      <a href={props.track.url}><img src={props.track.image.reverse()[0]['#text']} /></a>
+      <h3>{props.track.name}</h3>
+      <p>
+        <em>{props.track.artist['#text']}</em>
+      </p>
+      <span className="badge">{props.track.playcount} plays</span>
+    </div>
+  );
 }
